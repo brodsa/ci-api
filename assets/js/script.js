@@ -20,6 +20,7 @@ async function getStatus(e) {
     if (response.ok){
         displayStatus(data);
     } else{
+        displayException(data);
         throw new Error(data.error);
     }
         
@@ -43,18 +44,83 @@ function displayStatus(data){
 // 2. Pass the dat to a display function
 
 async function postForm(e){
-    
-    const form = new FormData(document.getElementById("checksform"));
+
+    const form = processOptions(new FormData(document.getElementById("checksform")));
     console.log(form)
 
-    for (let entry of form.entries){
-        console.log(entry);
+    // Testing the form object
+    // for (let entry of form.entries()){
+    //     console.log(entry);
+    // }
+
+    const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {"Authorization": API_KEY,},
+        body: form,
+                        
+    });
+
+    const data = await response.json();
+
+    if (response.ok){
+        displayErrors(data);
+    }else{
+        displayException(data);
+        throw new Error(data.error);
+    }
+}
+
+// 1. Iterate through the options
+// 2. Push each value into a temporary array
+// 3. Convert the array back to a string
+function processOptions(form){
+
+    let optArray = [];
+
+    for(let entry of form.entries()){
+        if (entry[0]==="options"){
+            optArray.push(entry[1]);
+        }
     }
 
-    // const response = fetch("https://ci-jshint.herokuapp.com/api", {
-    //                     method: "POST",
-    //                     headers: {
-    //                                 "Authorization": API_KEY,
-    //                              }
-    //                     })
+    form.delete('options');
+    form.append('options',optArray.join());
+
+    return form;
+}
+
+function displayErrors(data){
+
+    let heading = `JSHin Results for ${data.file}`;
+
+    if(data.total_errors === 0){
+        content = `<div class=no_errors> No errors reported! </div>`
+    }else{
+        content = `<div><span class="error_count"> Total errors:${data.total_errors} </span></div>`
+        for(let error of data.error_list){
+            content += `<div> At line <span class="line"> ${error.line}</span>,`;
+            content += `column <span class="column"> ${error.col}</span></div>`;
+            content += `<div class=error>${error.error}</div>`;
+        }
+    }
+
+    document.getElementById('resultsModalTitle').innerText = heading;
+    document.getElementById('results-content').innerHTML = content;
+
+    resultsModal.show();
+
+
+}
+
+function displayException(data){
+
+    let heading = `An Exception Occurred`;
+    let content = `<div> The API returned status code ${data.status_code}</div>`;
+    content += `<div> Error number: <strong> ${data.error_no}</strong></div>`;
+    content += `<div> Error text: <strong> ${data.error}</strong></div>`;
+
+    document.getElementById('resultsModalTitle').innerText = heading;
+    document.getElementById('results-content').innerHTML = content;
+
+    resultsModal.show();
 }
